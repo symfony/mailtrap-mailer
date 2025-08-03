@@ -30,9 +30,9 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 /**
  * @author Kevin Bond <kevinbond@gmail.com>
  */
-final class MailtrapApiTransport extends AbstractApiTransport
+class MailtrapApiTransport extends AbstractApiTransport
 {
-    private const HOST = 'send.api.mailtrap.io';
+    protected const HOST = 'send.api.mailtrap.io';
     private const HEADERS_TO_BYPASS = ['from', 'to', 'cc', 'bcc', 'subject', 'content-type', 'sender'];
 
     public function __construct(
@@ -46,12 +46,12 @@ final class MailtrapApiTransport extends AbstractApiTransport
 
     public function __toString(): string
     {
-        return \sprintf('mailtrap+api://%s', $this->getEndpoint());
+        return \sprintf('mailtrap+api://%s%s', $this->host ?: static::HOST, $this->port ? ':'.$this->port : '');
     }
 
     protected function doSendApi(SentMessage $sentMessage, Email $email, Envelope $envelope): ResponseInterface
     {
-        $response = $this->client->request('POST', 'https://'.$this->getEndpoint().'/api/send', [
+        $response = $this->client->request('POST', 'https://'.$this->getEndpoint(), [
             'json' => $this->getPayload($email, $envelope),
             'auth_bearer' => $this->token,
         ]);
@@ -143,8 +143,8 @@ final class MailtrapApiTransport extends AbstractApiTransport
         return array_filter(['email' => $address->getEncodedAddress(), 'name' => $address->getName()]);
     }
 
-    private function getEndpoint(): ?string
+    protected function getEndpoint(): string
     {
-        return ($this->host ?: self::HOST).($this->port ? ':'.$this->port : '');
+        return ($this->host ?: static::HOST).($this->port ? ':'.$this->port : '').'/api/send';
     }
 }

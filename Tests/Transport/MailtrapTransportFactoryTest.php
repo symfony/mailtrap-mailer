@@ -13,6 +13,7 @@ namespace Symfony\Component\Mailer\Bridge\Mailtrap\Tests\Transport;
 
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\Mailer\Bridge\Mailtrap\Transport\MailtrapApiSandboxTransport;
 use Symfony\Component\Mailer\Bridge\Mailtrap\Transport\MailtrapApiTransport;
 use Symfony\Component\Mailer\Bridge\Mailtrap\Transport\MailtrapSmtpTransport;
 use Symfony\Component\Mailer\Bridge\Mailtrap\Transport\MailtrapTransportFactory;
@@ -34,6 +35,11 @@ class MailtrapTransportFactoryTest extends AbstractTransportFactoryTestCase
     {
         yield [
             new Dsn('mailtrap+api', 'default'),
+            true,
+        ];
+
+        yield [
+            new Dsn('mailtrap+sandbox', 'default'),
             true,
         ];
 
@@ -73,6 +79,16 @@ class MailtrapTransportFactoryTest extends AbstractTransportFactoryTestCase
         ];
 
         yield [
+            new Dsn('mailtrap+sandbox', 'default', self::USER, null, null, ['inboxId' => '123456']),
+            new MailtrapApiSandboxTransport(self::USER, 123456, new MockHttpClient(), null, $logger),
+        ];
+
+        yield [
+            new Dsn('mailtrap+sandbox', 'example.com', self::USER, null, 8080, ['inboxId' => '123456']),
+            (new MailtrapApiSandboxTransport(self::USER, 123456, new MockHttpClient(), null, $logger))->setHost('example.com')->setPort(8080),
+        ];
+
+        yield [
             new Dsn('mailtrap', 'default', self::USER),
             new MailtrapSmtpTransport(self::USER, null, $logger),
         ];
@@ -92,7 +108,7 @@ class MailtrapTransportFactoryTest extends AbstractTransportFactoryTestCase
     {
         yield [
             new Dsn('mailtrap+foo', 'default', self::USER),
-            'The "mailtrap+foo" scheme is not supported; supported schemes for mailer "mailtrap" are: "mailtrap", "mailtrap+api", "mailtrap+smtp", "mailtrap+smtps".',
+            'The "mailtrap+foo" scheme is not supported; supported schemes for mailer "mailtrap" are: "mailtrap", "mailtrap+api", "mailtrap+sandbox", "mailtrap+smtp", "mailtrap+smtps".',
         ];
     }
 
