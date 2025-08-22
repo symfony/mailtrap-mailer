@@ -30,9 +30,10 @@ use Symfony\Contracts\HttpClient\ResponseInterface;
 /**
  * @author Kevin Bond <kevinbond@gmail.com>
  */
-class MailtrapApiTransport extends AbstractApiTransport
+final class MailtrapApiTransport extends AbstractApiTransport
 {
-    protected const HOST = 'send.api.mailtrap.io';
+    private const LIVE_API_HOST = 'send.api.mailtrap.io';
+    private const SANDBOX_API_HOST = 'sandbox.api.mailtrap.io';
     private const HEADERS_TO_BYPASS = ['from', 'to', 'cc', 'bcc', 'subject', 'content-type', 'sender'];
 
     public function __construct(
@@ -40,18 +41,23 @@ class MailtrapApiTransport extends AbstractApiTransport
         ?HttpClientInterface $client = null,
         ?EventDispatcherInterface $dispatcher = null,
         ?LoggerInterface $logger = null,
+        private ?int $inboxId = null,
     ) {
         parent::__construct($client, $dispatcher, $logger);
     }
 
     public function __toString(): string
     {
-        return \sprintf('mailtrap+api://%s%s', $this->host ?: static::HOST, $this->port ? ':'.$this->port : '');
+        if (null !== $this->inboxId) {
+            return \sprintf('mailtrap+sandbox://%s/?inboxId=%d', $this->getEndpoint(), $this->inboxId);
+        }
+
+        return \sprintf('mailtrap+api://%s', $this->getEndpoint());
     }
 
     protected function doSendApi(SentMessage $sentMessage, Email $email, Envelope $envelope): ResponseInterface
     {
-        $response = $this->client->request('POST', 'https://'.$this->getEndpoint(), [
+        $response = $this->client->request('POST', 'https://'.$this->getEndpoint().'/api/send'.(null !== $this->inboxId ? '/'.$this->inboxId : ''), [
             'json' => $this->getPayload($email, $envelope),
             'auth_bearer' => $this->token,
         ]);
@@ -143,8 +149,16 @@ class MailtrapApiTransport extends AbstractApiTransport
         return array_filter(['email' => $address->getEncodedAddress(), 'name' => $address->getName()]);
     }
 
-    protected function getEndpoint(): string
+    private function getEndpoint(): string
     {
-        return ($this->host ?: static::HOST).($this->port ? ':'.$this->port : '').'/api/send';
+        if ($this->host) {
+            $host = $this->host;
+        } elseif (null !== $this->inboxId) {
+            $host = self::SANDBOX_API_HOST;
+        } else {
+            $host = self::LIVE_API_HOST;
+        }
+
+        return $host.($this->port ? ':'.$this->port : '');
     }
 }
